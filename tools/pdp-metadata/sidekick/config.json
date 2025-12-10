@@ -1,0 +1,5 @@
+{
+  "project": "Adobe Storefront POC",
+  "editUrlLabel": "Document Authoring",
+  "editUrlPattern": "https://da.live/edit#/vimal-patel-bvi/adobe-storefront-poc{{pathname}}"
+}
