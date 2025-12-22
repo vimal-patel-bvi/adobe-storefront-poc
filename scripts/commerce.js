@@ -47,6 +47,7 @@ export const CUSTOMER_ADDRESS_PATH = `${CUSTOMER_PATH}/address`;
 export const CUSTOMER_LOGIN_PATH = `${CUSTOMER_PATH}/login`;
 export const CUSTOMER_ACCOUNT_PATH = `${CUSTOMER_PATH}/account`;
 export const CUSTOMER_FORGOTPASSWORD_PATH = `${CUSTOMER_PATH}/forgotpassword`;
+export const CUSTOMER_COMPARE_PRODUCTS_PATH = `${CUSTOMER_PATH}/compare-products`;
 export const SALES_ORDER_VIEW_PATH = '/sales/order/view/';
 
 // TRACKING URL

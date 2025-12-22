@@ -39,6 +39,16 @@ import '../../scripts/initializers/cart.js';
 import '../../scripts/initializers/wishlist.js';
 
 /**
+ * LocalStorage key for compared products
+ */
+const COMPARE_STORAGE_KEY = 'comparedProducts';
+
+/**
+ * Maximum number of products that can be compared
+ */
+const MAX_COMPARE_PRODUCTS = 3;
+
+/**
  * Checks if the page has prerendered product JSON-LD data
  * @returns {boolean} True if product JSON-LD exists and contains @type=Product
  */
@@ -56,6 +66,86 @@ function isProductPrerendered() {
     console.debug('Failed to parse JSON-LD:', error);
     return false;
   }
+}
+
+/**
+ * Gets compared products from localStorage
+ * @returns {string[]} Array of product SKUs
+ */
+function getComparedProducts() {
+  try {
+    const stored = localStorage.getItem(COMPARE_STORAGE_KEY);
+    if (!stored) return [];
+    const products = JSON.parse(stored);
+    // Ensure we only return max 3 products
+    return Array.isArray(products) ? products.slice(0, MAX_COMPARE_PRODUCTS) : [];
+  } catch (error) {
+    console.error('Error reading compared products from localStorage:', error);
+    return [];
+  }
+}
+
+/**
+ * Adds a product to compare list
+ * @param {string} sku - Product SKU to add
+ * @returns {Object} Result object with success status and message
+ */
+function addToCompare(sku) {
+  try {
+    if (!sku) {
+      return { success: false, message: 'Product SKU is required' };
+    }
+
+    const products = getComparedProducts();
+
+    // Check if product is already in compare list
+    if (products.includes(sku)) {
+      return { success: false, message: 'Product is already in compare list' };
+    }
+
+    // Check if max limit is reached
+    if (products.length >= MAX_COMPARE_PRODUCTS) {
+      return {
+        success: false,
+        message: `You can compare a maximum of ${MAX_COMPARE_PRODUCTS} products`,
+      };
+    }
+
+    // Add product to compare list
+    products.push(sku);
+    localStorage.setItem(COMPARE_STORAGE_KEY, JSON.stringify(products));
+    return { success: true, message: 'Product added to compare list' };
+  } catch (error) {
+    console.error('Error adding product to compare:', error);
+    return { success: false, message: 'Error adding product to compare' };
+  }
+}
+
+/**
+ * Removes a product from compare list
+ * @param {string} sku - Product SKU to remove
+ * @returns {Object} Result object with success status and message
+ */
+function removeFromCompare(sku) {
+  try {
+    const products = getComparedProducts();
+    const updated = products.filter((p) => p !== sku);
+    localStorage.setItem(COMPARE_STORAGE_KEY, JSON.stringify(updated));
+    return { success: true, message: 'Product removed from compare list' };
+  } catch (error) {
+    console.error('Error removing product from compare:', error);
+    return { success: false, message: 'Error removing product from compare' };
+  }
+}
+
+/**
+ * Checks if a product is in the compare list
+ * @param {string} sku - Product SKU to check
+ * @returns {boolean} True if product is in compare list
+ */
+function isProductInCompare(sku) {
+  const products = getComparedProducts();
+  return products.includes(sku);
 }
 
 // Function to update the Add to Cart button text
@@ -101,6 +191,7 @@ export default async function decorate(block) {
           <div class="product-details__buttons">
             <div class="product-details__buttons__add-to-cart"></div>
             <div class="product-details__buttons__add-to-wishlist"></div>
+            <div class="product-details__buttons__add-to-compare"></div>
           </div>
         </div>
         <div class="product-details__description"></div>
@@ -120,6 +211,7 @@ export default async function decorate(block) {
   const $giftCardOptions = fragment.querySelector('.product-details__gift-card-options');
   const $addToCart = fragment.querySelector('.product-details__buttons__add-to-cart');
   const $wishlistToggleBtn = fragment.querySelector('.product-details__buttons__add-to-wishlist');
+  const $addToCompare = fragment.querySelector('.product-details__buttons__add-to-compare');
   const $description = fragment.querySelector('.product-details__description');
   const $attributes = fragment.querySelector('.product-details__attributes');
 
@@ -224,6 +316,108 @@ export default async function decorate(block) {
       product,
     })($wishlistToggleBtn),
   ]);
+
+  // Configuration – Button - Add to Compare
+  const currentSku = product?.sku;
+  const isInCompare = currentSku ? isProductInCompare(currentSku) : false;
+  const compareButtonText = isInCompare
+    ? labels.Global?.RemoveFromCompare || 'Remove from Compare'
+    : labels.Global?.AddToCompare || 'Add to Compare';
+
+  const addToCompareBtn = await UI.render(Button, {
+    children: compareButtonText,
+    icon: h(Icon, { source: isInCompare ? 'Close' : 'Compare' }),
+    onClick: async () => {
+      if (!currentSku) {
+        return;
+      }
+
+      try {
+        addToCompareBtn.setProps((prev) => ({
+          ...prev,
+          disabled: true,
+        }));
+
+        let result;
+        if (isInCompare) {
+          result = removeFromCompare(currentSku);
+        } else {
+          result = addToCompare(currentSku);
+        }
+
+        if (result.success) {
+          // Update button state
+          const newIsInCompare = isProductInCompare(currentSku);
+          const newButtonText = newIsInCompare
+            ? labels.Global?.RemoveFromCompare || 'Remove from Compare'
+            : labels.Global?.AddToCompare || 'Add to Compare';
+
+          addToCompareBtn.setProps((prev) => ({
+            ...prev,
+            children: newButtonText,
+            icon: h(Icon, { source: newIsInCompare ? 'Close' : 'Compare' }),
+          }));
+
+          // Show success alert
+          inlineAlert?.remove();
+          inlineAlert = await UI.render(InLineAlert, {
+            heading: 'Success',
+            description: result.message,
+            icon: h(Icon, { source: 'Checkmark' }),
+            'aria-live': 'polite',
+            role: 'status',
+            onDismiss: () => {
+              inlineAlert.remove();
+            },
+          })($alert);
+
+          setTimeout(() => {
+            $alert.innerHTML = '';
+          }, 3000);
+        } else {
+          // Show error alert
+          inlineAlert?.remove();
+          inlineAlert = await UI.render(InLineAlert, {
+            heading: 'Error',
+            description: result.message,
+            icon: h(Icon, { source: 'Warning' }),
+            'aria-live': 'assertive',
+            role: 'alert',
+            onDismiss: () => {
+              inlineAlert.remove();
+            },
+          })($alert);
+
+          $alert.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+          });
+        }
+      } catch (error) {
+        inlineAlert?.remove();
+        inlineAlert = await UI.render(InLineAlert, {
+          heading: 'Error',
+          description: error.message || 'An error occurred',
+          icon: h(Icon, { source: 'Warning' }),
+          'aria-live': 'assertive',
+          role: 'alert',
+          onDismiss: () => {
+            inlineAlert.remove();
+          },
+        })($alert);
+
+        $alert.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+      } finally {
+        addToCompareBtn.setProps((prev) => ({
+          ...prev,
+          disabled: false,
+        }));
+      }
+    },
+  })($addToCompare);
 
   // Configuration – Button - Add to Cart
   const addToCart = await UI.render(Button, {
@@ -334,6 +528,22 @@ export default async function decorate(block) {
           ...product,
           optionUIDs,
         },
+      }));
+    }
+  }, { eager: true });
+
+  // Update compare button state when product changes
+  events.on('pdp/data', (productData) => {
+    if (addToCompareBtn && productData?.sku) {
+      const productInCompare = isProductInCompare(productData.sku);
+      const buttonText = productInCompare
+        ? labels.Global?.RemoveFromCompare || 'Remove from Compare'
+        : labels.Global?.AddToCompare || 'Add to Compare';
+
+      addToCompareBtn.setProps((prev) => ({
+        ...prev,
+        children: buttonText,
+        icon: h(Icon, { source: productInCompare ? 'Close' : 'Compare' }),
       }));
     }
   }, { eager: true });
