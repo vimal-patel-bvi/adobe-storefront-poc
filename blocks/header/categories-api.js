@@ -45,7 +45,8 @@ export function transformCategoriesToNav(categoryData) {
         
         // Create main category link
         const categoryLink = document.createElement('a');
-        categoryLink.href = `/category/${category.id}`;
+        // categoryLink.href = `/category/${category.id}`;
+        categoryLink.href = `/apparel`;
         categoryLink.textContent = category.name;
         li.appendChild(categoryLink);
         
@@ -59,7 +60,8 @@ export function transformCategoriesToNav(categoryData) {
             .forEach((childCategory) => {
               const submenuLi = document.createElement('li');
               const submenuLink = document.createElement('a');
-              submenuLink.href = `/category/${childCategory.id}`;
+              // submenuLink.href = `/category/${childCategory.id}`;
+              submenuLink.href = `/apparel`;
               submenuLink.textContent = childCategory.name;
               submenuLi.appendChild(submenuLink);
               submenuUl.appendChild(submenuLi);
