@@ -133,6 +133,8 @@ function removeFromCompare(sku) {
     const products = getComparedProducts();
     const updated = products.filter((p) => p !== sku);
     localStorage.setItem(COMPARE_STORAGE_KEY, JSON.stringify(updated));
+    // Emit event to update header counter
+    events.emit('compare-products-updated');
     return { success: true, message: 'Product removed from compare list' };
   } catch (error) {
     console.error('Error removing product from compare:', error);
@@ -334,6 +336,9 @@ export default async function decorate(block) {
         return;
       }
 
+      // Get current state before operation
+      const currentIsInCompare = isProductInCompare(currentSku);
+
       try {
         addToCompareBtn.setProps((prev) => ({
           ...prev,
@@ -341,14 +346,17 @@ export default async function decorate(block) {
         }));
 
         let result;
-        if (isInCompare) {
+        if (currentIsInCompare) {
           result = removeFromCompare(currentSku);
         } else {
           result = addToCompare(currentSku);
         }
 
         if (result.success) {
-          // Update button state
+          // Wait a moment to ensure localStorage is updated
+          await new Promise((resolve) => setTimeout(resolve, 10));
+
+          // Update button state based on new state
           const newIsInCompare = isProductInCompare(currentSku);
           const newButtonText = newIsInCompare
             ? labels.Global?.RemoveFromCompare || 'Remove from Compare'
@@ -358,6 +366,7 @@ export default async function decorate(block) {
             ...prev,
             children: newButtonText,
             icon: h(Icon, { source: newIsInCompare ? 'Close' : 'Compare' }),
+            disabled: false,
           }));
 
           // Show success alert
@@ -377,6 +386,12 @@ export default async function decorate(block) {
             $alert.innerHTML = '';
           }, 3000);
         } else {
+          // Re-enable button on error
+          addToCompareBtn.setProps((prev) => ({
+            ...prev,
+            disabled: false,
+          }));
+
           // Show error alert
           inlineAlert?.remove();
           inlineAlert = await UI.render(InLineAlert, {
@@ -396,6 +411,12 @@ export default async function decorate(block) {
           });
         }
       } catch (error) {
+        // Re-enable button on exception
+        addToCompareBtn.setProps((prev) => ({
+          ...prev,
+          disabled: false,
+        }));
+
         inlineAlert?.remove();
         inlineAlert = await UI.render(InLineAlert, {
           heading: 'Error',
@@ -412,11 +433,6 @@ export default async function decorate(block) {
           behavior: 'smooth',
           block: 'center',
         });
-      } finally {
-        addToCompareBtn.setProps((prev) => ({
-          ...prev,
-          disabled: false,
-        }));
       }
     },
   })($addToCompare);
@@ -546,9 +562,32 @@ export default async function decorate(block) {
         ...prev,
         children: buttonText,
         icon: h(Icon, { source: productInCompare ? 'Close' : 'Compare' }),
+        disabled: false,
       }));
     }
   }, { eager: true });
+
+  // Listen for compare list updates to refresh button state
+  events.on('compare-products-updated', () => {
+    if (addToCompareBtn) {
+      // Get current product SKU from the latest product data
+      const latestProduct = events.lastPayload('pdp/data') ?? product;
+      const sku = latestProduct?.sku || currentSku;
+      
+      if (sku) {
+        const productInCompare = isProductInCompare(sku);
+        const buttonText = productInCompare
+          ? labels.Global?.RemoveFromCompare || 'Remove from Compare'
+          : labels.Global?.AddToCompare || 'Add to Compare';
+
+        addToCompareBtn.setProps((prev) => ({
+          ...prev,
+          children: buttonText,
+          icon: h(Icon, { source: productInCompare ? 'Close' : 'Compare' }),
+        }));
+      }
+    }
+  });
 
   events.on('wishlist/alert', ({ action, item }) => {
     wishlistRender.render(WishlistAlert, {
