@@ -8,6 +8,7 @@ import { fetchPlaceholders, getProductLink, rootLink } from '../../scripts/comme
 
 import renderAuthCombine from './renderAuthCombine.js';
 import { renderAuthDropdown } from './renderAuthDropdown.js';
+import { fetchCategories, transformCategoriesToNav } from './categories-api.js';
 
 // media query match that indicates mobile/tablet width
 const isDesktop = window.matchMedia('(min-width: 900px)');
@@ -157,7 +158,7 @@ function setupSubmenu(navSection) {
  * @param {Element} block The header block element
  */
 export default async function decorate(block) {
-  // load nav as fragment
+  // load nav as fragment (for brand and tools)
   const navMeta = getMetadata('nav');
   const navPath = navMeta ? new URL(navMeta, window.location).pathname : '/nav';
   const fragment = await loadFragment(navPath);
@@ -175,13 +176,37 @@ export default async function decorate(block) {
   });
 
   const navBrand = nav.querySelector('.nav-brand');
-  const brandLink = navBrand.querySelector('.button');
+  const brandLink = navBrand?.querySelector('.button');
   if (brandLink) {
     brandLink.className = '';
     brandLink.closest('.button-container').className = '';
   }
 
-  const navSections = nav.querySelector('.nav-sections');
+  // Try to load navigation from API, replace nav-sections if successful
+  let navSections = nav.querySelector('.nav-sections');
+  try {
+    // Fetch categories from API
+    const categoriesData = await fetchCategories();
+    if (categoriesData && categoriesData.children_data) {
+      // Replace nav-sections with API-based navigation
+      const apiNavSections = transformCategoriesToNav(categoriesData);
+      if (navSections && navSections.parentNode) {
+        navSections.parentNode.replaceChild(apiNavSections, navSections);
+      } else {
+        // If nav-sections doesn't exist, insert it before nav-tools
+        const navTools = nav.querySelector('.nav-tools');
+        if (navTools) {
+          nav.insertBefore(apiNavSections, navTools);
+        } else {
+          nav.appendChild(apiNavSections);
+        }
+      }
+      navSections = apiNavSections;
+    }
+  } catch (error) {
+    console.warn('Failed to load categories from API, using fragment navigation:', error);
+    // navSections will remain from fragment
+  }
   if (navSections) {
     navSections
       .querySelectorAll(':scope .default-content-wrapper > ul > li')
