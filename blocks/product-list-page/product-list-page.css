@@ -81,6 +81,20 @@
     gap: var(--spacing-xxsmall);
 }
 
+.block.product-list-page .product-discovery-product-actions__compare-toggle button {
+    min-width: 40px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.block.product-list-page .product-discovery-product-actions__compare-toggle button svg {
+    width: 20px;
+    height: 20px;
+    display: block;
+}
+
 /* Empty State */
 
 .block.product-list-page.product-list-page--empty .search__wrapper {
