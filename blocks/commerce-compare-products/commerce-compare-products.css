@@ -61,6 +61,7 @@
   vertical-align: top;
   border-right: 1px solid var(--color-neutral-200);
   width: auto;
+  min-width: 280px;
 }
 
 .commerce-compare-products-product-col:last-child {
@@ -170,7 +171,7 @@
 }
 
 .commerce-compare-products-name:hover {
-  color: var(--color-primary);
+  color: var(--color-brand-500, #454545);
 }
 
 .commerce-compare-products-price {
@@ -205,32 +206,36 @@
 
 .commerce-compare-products-add-to-cart {
   width: 100%;
-  padding: var(--spacing-medium) var(--spacing-large);
+  padding: 12px 24px;
   border: none;
-  border-radius: var(--border-radius-small);
-  background: var(--color-primary);
-  color: var(--color-neutral-50);
+  border-radius: 4px;
+  background: var(--color-brand-500, #454545);
+  color: var(--color-neutral-50, #fff);
   font: var(--type-body-m-font);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  display: block;
+  box-sizing: border-box;
+  min-height: 44px;
 }
 
 .commerce-compare-products-add-to-cart:hover:not(:disabled) {
-  background: var(--color-primary-dark);
+  background: var(--color-brand-600, #383838);
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .commerce-compare-products-add-to-cart:active:not(:disabled) {
   transform: translateY(0);
+  background: var(--color-brand-700, #2b2b2b);
 }
 
 .commerce-compare-products-add-to-cart:disabled {
-  background: var(--color-neutral-300);
-  color: var(--color-neutral-500);
+  background: var(--color-neutral-300, #e8e8e8);
+  color: var(--color-neutral-500, #b8b8b8);
   cursor: not-allowed;
   opacity: 0.6;
 }

@@ -4,7 +4,7 @@ import { events } from '@dropins/tools/event-bus.js';
 import { tryRenderAemAssetsImage } from '@dropins/tools/lib/aem/assets.js';
 import { getMetadata } from '../../scripts/aem.js';
 import { loadFragment } from '../fragment/fragment.js';
-import { fetchPlaceholders, getProductLink, rootLink } from '../../scripts/commerce.js';
+import { fetchPlaceholders, getProductLink, rootLink, CUSTOMER_COMPARE_PRODUCTS_PATH } from '../../scripts/commerce.js';
 
 import renderAuthCombine from './renderAuthCombine.js';
 import { renderAuthDropdown } from './renderAuthDropdown.js';
@@ -252,6 +252,67 @@ export default async function decorate(block) {
 
   wishlistButton.addEventListener('click', () => {
     window.location.href = rootLink(wishlistPath);
+  });
+
+  /** Compare Products */
+  const compareProducts = document.createRange().createContextualFragment(`
+     <div class="compare-products-wrapper nav-tools-wrapper">
+       <button type="button" class="nav-compare-button" aria-label="Compare Products"></button>
+     </div>
+   `);
+
+  navTools.append(compareProducts);
+
+  const compareButton = navTools.querySelector('.nav-compare-button');
+
+  /**
+   * Gets compared products count from localStorage
+   * @returns {number} Number of products in compare list
+   */
+  function getComparedProductsCount() {
+    try {
+      const stored = localStorage.getItem('comparedProducts');
+      if (!stored) return 0;
+      const products = JSON.parse(stored);
+      return Array.isArray(products) ? Math.min(products.length, 3) : 0;
+    } catch (error) {
+      return 0;
+    }
+  }
+
+  /**
+   * Updates the compare button counter
+   */
+  function updateCompareButtonCounter() {
+    if (!compareButton) return;
+    const count = getComparedProductsCount();
+    if (count > 0) {
+      compareButton.setAttribute('data-count', String(count));
+    } else {
+      compareButton.removeAttribute('data-count');
+    }
+  }
+
+  // Initialize counter
+  updateCompareButtonCounter();
+
+  // Listen for storage changes to update counter
+  window.addEventListener('storage', () => {
+    updateCompareButtonCounter();
+  });
+
+  // Also listen for custom event when compare list changes on same page
+  events.on('compare-products-updated', () => {
+    updateCompareButtonCounter();
+  });
+
+  // Update counter periodically to catch localStorage changes
+  setInterval(() => {
+    updateCompareButtonCounter();
+  }, 1000);
+
+  compareButton.addEventListener('click', () => {
+    window.location.href = rootLink(CUSTOMER_COMPARE_PRODUCTS_PATH);
   });
 
   /** Mini Cart */

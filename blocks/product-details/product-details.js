@@ -114,6 +114,8 @@ function addToCompare(sku) {
     // Add product to compare list
     products.push(sku);
     localStorage.setItem(COMPARE_STORAGE_KEY, JSON.stringify(products));
+    // Emit event to update header counter
+    events.emit('compare-products-updated');
     return { success: true, message: 'Product added to compare list' };
   } catch (error) {
     console.error('Error adding product to compare:', error);

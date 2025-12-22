@@ -90,6 +90,8 @@ function removeFromCompare(sku) {
     const products = getComparedProducts();
     const updated = products.filter((p) => p !== sku);
     localStorage.setItem(COMPARE_STORAGE_KEY, JSON.stringify(updated));
+    // Emit event to update header counter
+    events.emit('compare-products-updated');
     // Reload the page to reflect changes
     window.location.reload();
   } catch (error) {
