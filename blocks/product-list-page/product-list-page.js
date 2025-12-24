@@ -10,8 +10,6 @@ import { search } from '@dropins/storefront-product-discovery/api.js';
 // Wishlist Dropin
 import { WishlistToggle } from '@dropins/storefront-wishlist/containers/WishlistToggle.js';
 import { render as wishlistRender } from '@dropins/storefront-wishlist/render.js';
-// Cart Dropin
-import * as cartApi from '@dropins/storefront-cart/api.js';
 import { tryRenderAemAssetsImage } from '@dropins/tools/lib/aem/assets.js';
 // Event Bus
 import { events } from '@dropins/tools/event-bus.js';
@@ -190,27 +188,6 @@ export default async function decorate(block) {
     });
   }
 
-  const getAddToCartButton = (product) => {
-    if (product.typename === 'ComplexProductView') {
-      const button = document.createElement('div');
-      UI.render(Button, {
-        children: labels.Global?.AddProductToCart,
-        icon: Icon({ source: 'Cart' }),
-        href: getProductLink(product.urlKey, product.sku),
-        variant: 'primary',
-      })(button);
-      return button;
-    }
-    const button = document.createElement('div');
-    UI.render(Button, {
-      children: labels.Global?.AddProductToCart,
-      icon: Icon({ source: 'Cart' }),
-      onClick: () => cartApi.addProductsToCart([{ sku: product.sku, quantity: 1 }]),
-      variant: 'primary',
-    })(button);
-    return button;
-  };
-
   const getCompareButton = async (product) => {
     const sku = product?.sku;
     if (!sku) return null;
@@ -218,26 +195,28 @@ export default async function decorate(block) {
     const updateButtonState = (buttonInstance, productSku) => {
       const productInCompare = isProductInCompare(productSku);
       const ariaLabel = productInCompare
-        ? labels.Global?.RemoveFromCompare || 'Remove from Compare'
+        ? labels.Global?.RemoveFromCompare || 'Remove'
         : labels.Global?.AddToCompare || 'Add to Compare';
 
       buttonInstance.setProps((prev) => ({
         ...prev,
         'aria-label': ariaLabel,
+        children: ariaLabel,
         icon: h(Icon, { source: productInCompare ? 'Close' : 'Add' }),
       }));
     };
 
     const isInCompare = isProductInCompare(sku);
     const ariaLabel = isInCompare
-      ? labels.Global?.RemoveFromCompare || 'Remove from Compare'
+      ? labels.Global?.RemoveFromCompare || 'Remove'
       : labels.Global?.AddToCompare || 'Add to Compare';
 
     const button = document.createElement('div');
     const compareBtn = await UI.render(Button, {
       'aria-label': ariaLabel,
+      children: ariaLabel,
       icon: h(Icon, { source: isInCompare ? 'Close' : 'Add' }),
-      variant: 'tertiary',
+      variant: 'primary',
       onClick: async () => {
         // Get current state before operation
         const currentIsInCompare = isProductInCompare(sku);
@@ -346,9 +325,12 @@ export default async function decorate(block) {
         ProductActions: async (ctx) => {
           const actionsWrapper = document.createElement('div');
           actionsWrapper.className = 'product-discovery-product-actions';
-          // Add to Cart Button
-          const addToCartBtn = getAddToCartButton(ctx.product);
-          addToCartBtn.className = 'product-discovery-product-actions__add-to-cart';
+          // Compare Button (replaces Add to Cart)
+          const $compareButton = await getCompareButton(ctx.product);
+          if ($compareButton) {
+            $compareButton.classList.add('product-discovery-product-actions__compare-toggle');
+            actionsWrapper.appendChild($compareButton);
+          }
           // Wishlist Button
           const $wishlistToggle = document.createElement('div');
           $wishlistToggle.classList.add('product-discovery-product-actions__wishlist-toggle');
@@ -356,13 +338,6 @@ export default async function decorate(block) {
             product: ctx.product,
             variant: 'tertiary',
           })($wishlistToggle);
-          // Compare Button
-          const $compareButton = await getCompareButton(ctx.product);
-          if ($compareButton) {
-            $compareButton.classList.add('product-discovery-product-actions__compare-toggle');
-            actionsWrapper.appendChild($compareButton);
-          }
-          actionsWrapper.appendChild(addToCartBtn);
           actionsWrapper.appendChild($wishlistToggle);
           ctx.replaceWith(actionsWrapper);
         },

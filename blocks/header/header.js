@@ -404,19 +404,61 @@ export default async function decorate(block) {
     togglePanel(minicartPanel, state);
   }
 
-  cartButton.addEventListener('click', () => toggleMiniCart(!minicartPanel.classList.contains('nav-tools-panel--show')));
+  cartButton.addEventListener('click', () => {
+    window.location.href = rootLink('/cart');
+  });
 
-  // Cart Item Counter
-  events.on('cart/data', (data) => {
-    // preload mini cart fragment if user has a cart
-    if (data) loadMiniCartFragment();
+  /**
+   * Updates cart button counter
+   */
+  async function updateCartCounter() {
+    try {
+      const cartId = localStorage.getItem('cartId');
+      if (!cartId) {
+        cartButton.removeAttribute('data-count');
+        return;
+      }
 
-    if (data?.totalQuantity) {
-      cartButton.setAttribute('data-count', data.totalQuantity);
-    } else {
+      const baseUrl = window.BASE_URL || 'https://748062-appbuilderpoc-stage.adobeio-static.net/api/v1/web';
+      const response = await fetch(`${baseUrl}/poc-appbuilder-storefront/cart-get`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ cartId }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const totalQuantity = data?.cart?.total_quantity || 0;
+        if (totalQuantity > 0) {
+          cartButton.setAttribute('data-count', String(totalQuantity));
+        } else {
+          cartButton.removeAttribute('data-count');
+        }
+      } else {
+        cartButton.removeAttribute('data-count');
+      }
+    } catch (error) {
+      console.error('Error updating cart counter:', error);
       cartButton.removeAttribute('data-count');
     }
-  }, { eager: true });
+  }
+
+  // Initial cart counter update
+  updateCartCounter();
+
+  // Listen for cart updates
+  window.addEventListener('cart-updated', () => {
+    updateCartCounter();
+  });
+
+  // Listen for storage changes
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'cartId') {
+      updateCartCounter();
+    }
+  });
 
   /** Search */
   const searchFragment = document.createRange().createContextualFragment(`

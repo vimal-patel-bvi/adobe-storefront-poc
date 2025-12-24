@@ -391,14 +391,14 @@ header nav .nav-tools button.nav-compare-button[data-count]::after {
   background-color: var(--color-brand-700);
   color: var(--color-neutral-100);
   border-radius: 50%;
-  width: 1.75em;
-  height: 1.75em;
-  min-width: 1.75em;
+  width: 2.25em;
+  height: 2.25em;
+  min-width: 2.25em;
   display: flex;
   align-items: center;
-  font-size: 0.75rem;
+  font-size: 1.08rem;
   font-weight: 600;
-  line-height: 1;
+  line-height: 3;
   justify-content: center;
   box-sizing: border-box;
 }

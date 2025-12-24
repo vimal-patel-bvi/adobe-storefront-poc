@@ -49,6 +49,16 @@ const COMPARE_STORAGE_KEY = 'comparedProducts';
 const MAX_COMPARE_PRODUCTS = 3;
 
 /**
+ * LocalStorage key for cart ID
+ */
+const CART_ID_STORAGE_KEY = 'cartId';
+
+/**
+ * Base URL for API endpoints
+ */
+const BASE_URL = window.BASE_URL || 'https://748062-appbuilderpoc-stage.adobeio-static.net/api/v1/web';
+
+/**
  * Checks if the page has prerendered product JSON-LD data
  * @returns {boolean} True if product JSON-LD exists and contains @type=Product
  */
@@ -150,6 +160,116 @@ function removeFromCompare(sku) {
 function isProductInCompare(sku) {
   const products = getComparedProducts();
   return products.includes(sku);
+}
+
+/**
+ * Gets cart ID from localStorage
+ * @returns {string|null} Cart ID or null if not found
+ */
+function getCartId() {
+  try {
+    return localStorage.getItem(CART_ID_STORAGE_KEY);
+  } catch (error) {
+    console.error('Error reading cart ID from localStorage:', error);
+    return null;
+  }
+}
+
+/**
+ * Saves cart ID to localStorage
+ * @param {string} cartId - Cart ID to save
+ */
+function setCartId(cartId) {
+  try {
+    if (cartId) {
+      localStorage.setItem(CART_ID_STORAGE_KEY, cartId);
+    } else {
+      localStorage.removeItem(CART_ID_STORAGE_KEY);
+    }
+  } catch (error) {
+    console.error('Error saving cart ID to localStorage:', error);
+  }
+}
+
+/**
+ * Removes cart ID from localStorage (used after order placement)
+ */
+function clearCartId() {
+  try {
+    localStorage.removeItem(CART_ID_STORAGE_KEY);
+  } catch (error) {
+    console.error('Error clearing cart ID from localStorage:', error);
+  }
+}
+
+/**
+ * Creates a new cart via API
+ * @returns {Promise<string>} Cart ID
+ */
+async function createCart() {
+  const apiUrl = `${BASE_URL}/poc-appbuilder-storefront/cart-create`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to create cart: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const cartId = data?.cart?.id;
+
+    if (!cartId) {
+      throw new Error('Cart ID not found in response');
+    }
+
+    // Save cart ID to localStorage
+    setCartId(cartId);
+    return cartId;
+  } catch (error) {
+    console.error('Error creating cart:', error);
+    throw error;
+  }
+}
+
+/**
+ * Adds an item to cart via API
+ * @param {string} cartId - Cart ID
+ * @param {string} sku - Product SKU
+ * @param {number} quantity - Product quantity
+ * @returns {Promise<Object>} Cart response data
+ */
+async function addItemToCart(cartId, sku, quantity) {
+  const apiUrl = `${BASE_URL}/poc-appbuilder-storefront/cart-add-item`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        cartId,
+        sku,
+        quantity,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to add item to cart: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error adding item to cart:', error);
+    throw error;
+  }
 }
 
 // Function to update the Add to Cart button text
@@ -484,11 +604,26 @@ export default async function decorate(block) {
             }
             return;
           }
-          // --- Add new item ---
-          const { addProductsToCart } = await import(
-            '@dropins/storefront-cart/api.js'
-          );
-          await addProductsToCart([{ ...values }]);
+          // --- Add new item using custom API ---
+          const sku = values?.sku;
+          const quantity = values?.quantity || 1;
+
+          if (!sku) {
+            throw new Error('Product SKU is required');
+          }
+
+          // Get or create cart ID
+          let cartId = getCartId();
+          if (!cartId) {
+            // Create cart if it doesn't exist
+            cartId = await createCart();
+          }
+
+          // Add item to cart
+          await addItemToCart(cartId, sku, quantity);
+
+          // Emit cart updated event for other pages to refresh
+          window.dispatchEvent(new CustomEvent('cart-updated'));
         }
 
         // reset any previous alerts if successful
