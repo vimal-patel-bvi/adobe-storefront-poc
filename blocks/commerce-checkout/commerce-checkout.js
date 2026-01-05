@@ -873,7 +873,7 @@ export default async function decorate(block) {
         method_code: 'flatrate',
       },
       paymentMethod: {
-        code: 'paypal',
+        code: 'checkmo',
       },
     };
 
