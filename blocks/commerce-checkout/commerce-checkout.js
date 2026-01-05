@@ -609,6 +609,42 @@ export default async function decorate(block) {
               <span class="checkout__error" id="telephone-error"></span>
             </div>
           </div>
+
+          <div class="checkout__section">
+            <h2 class="checkout__section-title">${placeholders?.Global?.PaymentMethod || 'Payment Method'}</h2>
+            <div class="checkout__payment-methods">
+              <div class="checkout__payment-option">
+                <input 
+                  type="radio" 
+                  id="payment-paypal" 
+                  name="paymentMethod" 
+                  value="paypal" 
+                  class="checkout__radio" 
+                  checked
+                  required
+                />
+                <label for="payment-paypal" class="checkout__payment-label">
+                  <span class="checkout__payment-name">PayPal</span>
+                  <span class="checkout__payment-description">Pay securely with your PayPal account</span>
+                </label>
+              </div>
+              <div class="checkout__payment-option checkout__payment-option--disabled">
+                <input 
+                  type="radio" 
+                  id="payment-cod" 
+                  name="paymentMethod" 
+                  value="cod" 
+                  class="checkout__radio" 
+                  disabled
+                />
+                <label for="payment-cod" class="checkout__payment-label checkout__payment-label--disabled">
+                  <span class="checkout__payment-name">Cash on Delivery (COD)</span>
+                  <span class="checkout__payment-description">Pay when you receive your order</span>
+                  <span class="checkout__payment-disabled-badge">Coming Soon</span>
+                </label>
+              </div>
+            </div>
+          </div>
         </form>
       </div>
 
@@ -814,6 +850,19 @@ export default async function decorate(block) {
 
     // Get form data
     const formData = new FormData($form);
+    const selectedPaymentMethod = formData.get('paymentMethod');
+    
+    // Ensure only PayPal is allowed
+    if (selectedPaymentMethod !== 'paypal') {
+      showNotification('Only PayPal payment method is currently available', 'error');
+      // Force PayPal selection
+      const paypalRadio = $form.querySelector('#payment-paypal');
+      if (paypalRadio) {
+        paypalRadio.checked = true;
+      }
+      return;
+    }
+
     const data = {
       guestEmail: formData.get('guestEmail')?.trim() || '',
       firstname: formData.get('firstname')?.trim() || '',
@@ -825,6 +874,7 @@ export default async function decorate(block) {
       postcode: formData.get('postcode')?.trim() || '',
       country_code: formData.get('country_code')?.trim() || '',
       telephone: formData.get('telephone')?.trim() || '',
+      paymentMethod: 'paypal', // Always use PayPal
     };
 
     // Validate form
@@ -1040,6 +1090,42 @@ export default async function decorate(block) {
       `;
       return false;
     }
+  }
+
+  /**
+   * Handles payment method selection
+   */
+  function handlePaymentMethodChange() {
+    const paymentOptions = $form.querySelectorAll('.checkout__payment-option');
+    paymentOptions.forEach((option) => {
+      const radio = option.querySelector('.checkout__radio');
+      if (radio && radio.checked) {
+        option.classList.add('checkout__payment-option--selected');
+      } else {
+        option.classList.remove('checkout__payment-option--selected');
+      }
+    });
+  }
+
+  // Initialize payment method styling
+  const paypalRadio = $form.querySelector('#payment-paypal');
+  if (paypalRadio) {
+    paypalRadio.checked = true;
+    handlePaymentMethodChange();
+    
+    // Add event listener for payment method changes
+    const paymentRadios = $form.querySelectorAll('input[name="paymentMethod"]');
+    paymentRadios.forEach((radio) => {
+      radio.addEventListener('change', () => {
+        // Prevent COD selection
+        if (radio.value === 'cod') {
+          radio.checked = false;
+          paypalRadio.checked = true;
+          showNotification('Cash on Delivery is not available yet. Please use PayPal.', 'info');
+        }
+        handlePaymentMethodChange();
+      });
+    });
   }
 
   // Event listeners
